@@ -34,7 +34,7 @@ cov_matrix = df_log_returns.cov()
 
 #means of df_log_returns
 mean_returns = df_log_returns.mean()
-
+print(cov_matrix)
 #invert the covariance matrix
 inv_cov_matrix = np.linalg.inv(cov_matrix)
 

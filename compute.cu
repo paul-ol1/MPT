@@ -74,20 +74,22 @@ std::pair<std::vector<std::vector<float>>,std::vector<float>>  read_csv(const st
 
 __global__ void covar(float *data, float *means, float *covar, int weekscount, int num_features) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
-    int x_id = index / num_features;
-    int y_id = index % num_features;
+    int x_id = index % num_features;  // Row index
+    int y_id = index / num_features;  // Column index
     float sum = 0.0;
 
-    if (index < num_features * num_features) {
-        // Iterate over weeks to calculate covariance
+    if (x_id < num_features && y_id < num_features) {
+        // Compute covariance for feature pairs (x_id, y_id)
         for (int i = 0; i < weekscount; i++) {
-            float diff_x = data[i * num_features + x_id] - means[x_id];
-            float diff_y = data[i * num_features + y_id] - means[y_id];
+            float diff_x = data[x_id * weekscount + i] - means[x_id];
+            float diff_y = data[y_id * weekscount + i] - means[y_id];
             sum += diff_x * diff_y;
         }
 
-        // Divide by (weekscount - 1) for the sample covariance
+        // Compute final covariance value
         covar[x_id * num_features + y_id] = sum / (weekscount - 1);
+
+
     }
 }
 
@@ -127,6 +129,7 @@ std::vector<float> rowToColumnMajor(std::vector<float> data, int numOfFeatures) 
 
 std::vector<float> kernelOperations(std::vector<float> data, std::vector<float> means, int M, int N, int blocksize, int threadsize) {
     float matrix_size = M * N * sizeof(float);
+    float h_covar[N * N];
     std::vector<float> weights(N, 0.0f);
     float *d_data, *d_covar, *d_means, *d_weights, *d_ones,*d_identity, *d_work;
     int *gpu_pivot, *gpu_info;
@@ -162,6 +165,8 @@ std::vector<float> kernelOperations(std::vector<float> data, std::vector<float> 
     covar<<<blocksize, threadsize>>>(d_data, d_means, d_covar, M, N);
     cudaDeviceSynchronize();
 
+
+    cudaMemcpy(h_covar, d_covar, N * N * sizeof(float), cudaMemcpyDeviceToHost);
 
     /*
     In order to calculate the GMV portfolio weights, we need to calculate the inverse of the covariance matrix. We use the cuSOLVER library to perform LU decomposition and matrix inversion. The LU decomposition is done in-place on the covariance matrix, and the inverse is calculated using the LU factors.
@@ -221,7 +226,7 @@ int main() {
     std::pair<std::vector<std::vector<float>>, std::vector<float>> data_means = read_csv(folder_path);
     std::vector<std::vector<float>> data = data_means.first;
     std::vector<float> means = data_means.second;
-
+    std::cout << "\n";
     std::cout << "Data size: " << data.size() << " x " << data[0].size() << "\n";
     std::vector<float> flat_data = flatten_matrix(data);
     std::vector<float> weights = kernelOperations(flat_data, means, data[0].size(),data.size(), 471, 512);
@@ -233,11 +238,10 @@ int main() {
     for (int i = 0; i < weights.size(); i++) {
         weights[i] /= sum;
     }
-    std::cout << "weights matrix size: " << weights.size() << "\n";
-    std::cout << "weights: \n";
     for(int i = 0; i < weights.size(); i++){
         std::cout << weights[i] << " ";
     }
+
 
     return 0;
 }
