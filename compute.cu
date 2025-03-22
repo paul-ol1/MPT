@@ -74,8 +74,8 @@ std::pair<std::vector<std::vector<float>>,std::vector<float>>  read_csv(const st
 
 __global__ void covar(float *data, float *means, float *covar, int weekscount, int num_features) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
-    int x_id = index % num_features;  // Row index
-    int y_id = index / num_features;  // Column index
+    int x_id = index % num_features;  
+    int y_id = index / num_features;
     float sum = 0.0;
 
     if (x_id < num_features && y_id < num_features) {

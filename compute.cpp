@@ -52,7 +52,7 @@ std::pair<std::vector<std::vector<float>>,std::vector<float>>  read_csv(const st
                     prev_price = price;  // Update for next iteration
                 }
             } catch (const std::exception& e) {
-                std::cerr << "Skipping invalid data: " << line << " in file " << entry << "\n";
+                std::cerr << "Completing: " << line  << entry << "\n";
             }
 
         }
@@ -89,34 +89,22 @@ std::vector<std::vector<float>> invert_matrix(std::vector<std::vector<float>> ma
     for (int i = 0; i < n; ++i)
         inverse[i][i] = 1.0;
 
-    // Forward elimination
     for (int i = 0; i < n; ++i) {
         float pivot = matrix[i][i];
         if (pivot == 0.0) {
-            std::cerr << "Singular matrix, can't invert.\n";
+            std::cerr << "Matrix is singular and cannot be inverted.\n";
             exit(1);
         }
 
-        // Normalize the pivot row
+        // Normalize pivot row
         for (int j = 0; j < n; ++j) {
             matrix[i][j] /= pivot;
             inverse[i][j] /= pivot;
         }
 
-
-        // Eliminate below
-        for (int k = i + 1; k < n; ++k) {
-            float factor = matrix[k][i];
-            for (int j = 0; j < n; ++j) {
-                matrix[k][j] -= factor * matrix[i][j];
-                inverse[k][j] -= factor * inverse[i][j];
-            }
-        }
-    }
-
-    // Backward substitution
-    for (int i = n - 1; i >= 0; --i) {
-        for (int k = i - 1; k >= 0; --k) {
+        // Eliminate other rows
+        for (int k = 0; k < n; ++k) {
+            if (k == i) continue;
             float factor = matrix[k][i];
             for (int j = 0; j < n; ++j) {
                 matrix[k][j] -= factor * matrix[i][j];
@@ -129,11 +117,11 @@ std::vector<std::vector<float>> invert_matrix(std::vector<std::vector<float>> ma
 }
 
 // calculate the weights
-std::vector<float> calculate_weights(std::vector<std::vector<float>> coVarInv){
-    int n = coVarInv.size();
-    std::vector<float> weights(n, 0.0);
-    for (int i = 0; i < n; ++i){
-        for (int j = 0; j < n; ++j){
+std::vector<float> calculate_weights(std::vector<std::vector<float>> coVarInv, int N){
+
+    std::vector<float> weights(N, 0.0);
+    for (int i = 0; i < N; i++){
+        for (int j = 0; j < N; j++){
             weights[i] += coVarInv[i][j];
         }
     }
@@ -163,16 +151,20 @@ int main() {
     int M = data[0].size();
     // Compute covariance matrix
     std::vector<std::vector<float>> covariance_matrix = covariance(data, means, M, N);
+
     // Compute inverse covariance matrix
     std::vector<std::vector<float>> coVarInv = invert_matrix(covariance_matrix);
 
-    // Compute and normalize weights
-    std::vector<float> weights = calculate_weights(coVarInv);
-    std::vector<float> normalized_weights = normalize_weights(weights);
 
-    // Print normalized weights
-    for (int i = 0; i < normalized_weights.size(); ++i){
-        std::cout<<normalized_weights[i]<<std::endl;
+    // Compute and normalize weights
+    std::vector<float> weights = calculate_weights(coVarInv, N);
+    std::vector<float> normalized_weights = normalize_weights(weights);
+    printf("Weights: ");
+    for (int i = 0; i < N; i++){
+        std::cout << normalized_weights[i] << " ";
     }
+    printf("\n");
+
+
     return 0;
 }
